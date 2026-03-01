@@ -1,0 +1,108 @@
+### Get all products
+GET http://localhost:3000/products
+
+### Get product by ID
+GET http://localhost:3000/products/1
+
+### Get non-existent product (should return 404)
+GET http://localhost:3000/products/999
+
+### Create product - Orange
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "id": "3",
+  "name": "orange",
+  "quantity": 8,
+  "price": 12
+}
+
+### Create product - Grape
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "id": "4",
+  "name": "grape",
+  "quantity": 15,
+  "price": 25
+}
+
+### Create product - Mango
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "id": "5",
+  "name": "mango",
+  "quantity": 12,
+  "price": 30
+}
+
+### Create product with duplicate ID (should return 409)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "id": "1",
+  "name": "duplicate banana",
+  "quantity": 5,
+  "price": 10
+}
+
+### Create product with missing fields (should return 400)
+POST http://localhost:3000/products
+Content-Type: application/json
+
+{
+  "id": "6",
+  "name": "pear"
+}
+
+### Update product - Change quantity
+PUT http://localhost:3000/products/1
+Content-Type: application/json
+
+{
+  "quantity": 20
+}
+
+### Update product - Change name and price
+PUT http://localhost:3000/products/2
+Content-Type: application/json
+
+{
+  "name": "red apple",
+  "price": 18
+}
+
+### Update product - Full update
+PUT http://localhost:3000/products/1
+Content-Type: application/json
+
+{
+  "name": "yellow banana",
+  "quantity": 25,
+  "price": 20
+}
+
+### Update non-existent product (should return 404)
+PUT http://localhost:3000/products/999
+Content-Type: application/json
+
+{
+  "name": "ghost product"
+}
+
+### Delete product
+DELETE http://localhost:3000/products/3
+
+### Delete non-existent product (should return 404)
+DELETE http://localhost:3000/products/999
+
+### Get all products (final list)
+GET http://localhost:3000/products
+
+### Root endpoint
+GET http://localhost:3000/
