@@ -1,7 +1,36 @@
 import express, { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
+import morgan from "morgan";
+import winston from "winston";
 
+// create express app
 const app = express();
 const port = 3000;
+
+// ensure logs directory exists
+const logDir = path.join(__dirname, "../logs");
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+}
+
+// configure Winston logger
+const logger = winston.createLogger({
+    level: "info",
+    format: winston.format.combine(
+        winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+        winston.format.printf(
+            ({ level, message, timestamp }) => `${timestamp} [${level.toUpperCase()}] ${message}`,
+        ),
+    ),
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: "logs/app.log" }),
+    ],
+});
+
+// Morgan will use winston for HTTP request logging
+app.use(morgan("combined", { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
 type Product = {
     id: string;
@@ -28,6 +57,12 @@ const availableProducts: Product[] = [
 // Middleware
 app.use(express.json());
 
+// route logging example
+app.use((req, res, next) => {
+    logger.info(`Incoming ${req.method} request to ${req.url}`);
+    next();
+});
+
 // GET all products
 app.get("/products", (req: Request, res: Response) => {
     res.json(availableProducts);
@@ -46,6 +81,8 @@ app.get("/products/:id", (req: Request, res: Response) => {
 // CREATE new product
 app.post("/products", (req: Request, res: Response) => {
     const { id, name, quantity, price } = req.body;
+
+    logger.info(`Creating product ${id}`);
 
     if (!id || !name || quantity === undefined || price === undefined) {
         res.status(400).json({ error: "Missing required fields: id, name, quantity, price" });
@@ -72,6 +109,8 @@ app.put("/products/:id", (req: Request, res: Response) => {
 
     const { name, quantity, price } = req.body;
 
+    logger.info(`Updating product ${req.params.id}`);
+
     if (name !== undefined) product.name = name;
     if (quantity !== undefined) product.quantity = quantity;
     if (price !== undefined) product.price = price;
@@ -86,6 +125,8 @@ app.delete("/products/:id", (req: Request, res: Response) => {
         res.status(404).json({ error: "Product not found" });
         return;
     }
+
+    logger.info(`Deleting product ${req.params.id}`);
 
     const deletedProduct = availableProducts.splice(index, 1)[0];
     res.json(deletedProduct);
