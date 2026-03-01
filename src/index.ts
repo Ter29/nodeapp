@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import morgan from "morgan";
 import winston from "winston";
+import { ProductService, Product } from "./ProductService";
 
 // create express app
 const app = express();
@@ -32,27 +33,16 @@ const logger = winston.createLogger({
 // Morgan will use winston for HTTP request logging
 app.use(morgan("combined", { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
-type Product = {
+// parameter interface used for routes that expect an :id path variable
+interface IdParam {
     id: string;
-    name: string;
-    quantity: number;
-    price: number;
-};
+}
 
-const availableProducts: Product[] = [
-    {
-        id: "1",
-        name: "banana",
-        quantity: 10,
-        price: 15,
-    },
-    {
-        id: "2",
-        name: "apple",
-        quantity: 10,
-        price: 15,
-    },
-];
+// In-memory product store
+const productService = new ProductService([
+    { id: "1", name: "banana", quantity: 10, price: 15 },
+    { id: "2", name: "apple", quantity: 10, price: 15 },
+]);
 
 // Middleware
 app.use(express.json());
@@ -65,12 +55,12 @@ app.use((req, res, next) => {
 
 // GET all products
 app.get("/products", (req: Request, res: Response) => {
-    res.json(availableProducts);
+    res.json(productService.getAll());
 });
 
 // GET product by ID
-app.get("/products/:id", (req: Request, res: Response) => {
-    const product = availableProducts.find((p) => p.id === req.params.id);
+app.get<IdParam>("/products/:id", (req: Request<IdParam>, res: Response) => {
+    const product = productService.getById(req.params.id);
     if (!product) {
         res.status(404).json({ error: "Product not found" });
         return;
@@ -89,47 +79,39 @@ app.post("/products", (req: Request, res: Response) => {
         return;
     }
 
-    if (availableProducts.some((p) => p.id === id)) {
+    const newProduct: Product = { id, name, quantity, price };
+    const created = productService.create(newProduct);
+    if (!created) {
+        // already exists
         res.status(409).json({ error: "Product with this ID already exists" });
         return;
     }
-
-    const newProduct: Product = { id, name, quantity, price };
-    availableProducts.push(newProduct);
-    res.status(201).json(newProduct);
+    res.status(201).json(created);
 });
 
 // UPDATE product by ID
-app.put("/products/:id", (req: Request, res: Response) => {
-    const product = availableProducts.find((p) => p.id === req.params.id);
-    if (!product) {
-        res.status(404).json({ error: "Product not found" });
-        return;
-    }
-
+app.put<IdParam>("/products/:id", (req: Request<IdParam>, res: Response) => {
     const { name, quantity, price } = req.body;
 
     logger.info(`Updating product ${req.params.id}`);
 
-    if (name !== undefined) product.name = name;
-    if (quantity !== undefined) product.quantity = quantity;
-    if (price !== undefined) product.price = price;
-
-    res.json(product);
-});
-
-// DELETE product by ID
-app.delete("/products/:id", (req: Request, res: Response) => {
-    const index = availableProducts.findIndex((p) => p.id === req.params.id);
-    if (index === -1) {
+    const updated = productService.update(req.params.id, { name, quantity, price });
+    if (!updated) {
         res.status(404).json({ error: "Product not found" });
         return;
     }
+    res.json(updated);
+});
 
+// DELETE product by ID
+app.delete<IdParam>("/products/:id", (req: Request<IdParam>, res: Response) => {
     logger.info(`Deleting product ${req.params.id}`);
-
-    const deletedProduct = availableProducts.splice(index, 1)[0];
-    res.json(deletedProduct);
+    const deleted = productService.delete(req.params.id);
+    if (!deleted) {
+        res.status(404).json({ error: "Product not found" });
+        return;
+    }
+    res.json(deleted);
 });
 
 // Root endpoint
